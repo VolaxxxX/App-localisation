@@ -15,7 +15,7 @@ chacun ne voit que la position des contacts auxquels il est explicitement lié.
 - 🔐 **Authentification** e-mail / mot de passe (Firebase Auth, session persistée)
 - 🔗 **Liaison par code** : chaque utilisateur a un code unique à 6 caractères ;
   on rejoint quelqu'un en entrant son code. **Liaison multiple** supportée.
-- 🗺️ **Carte temps réel** (Apple Maps sur iOS, Google Maps sur Android)
+- 🗺️ **Carte temps réel** (OpenStreetMap, sans clé API)
   - marqueurs personnalisés : prénom, avatar emoji, couleur
   - batterie, dernière mise à jour, distance, précision GPS
 - 🟢 **Présence** en ligne / hors ligne (via `onDisconnect` Firebase)
@@ -34,7 +34,7 @@ chacun ne voit que la position des contacts auxquels il est explicitement lié.
 | App cross-platform | **Expo + React Native + TypeScript** | un seul code iOS/Android, builds gratuits via EAS, OTA updates, typage complet |
 | Temps réel | **Firebase Realtime Database** | latence < 1 s, idéal pour des positions à haute fréquence ; `onDisconnect` natif pour la présence ; quota gratuit généreux ; bien moins cher que Firestore pour des écritures fréquentes éphémères |
 | Auth | **Firebase Auth** (email/password) | gratuit, sécurisé, persistance AsyncStorage |
-| Carte | **react-native-maps** | Apple Maps sur iOS (aucune clé requise), Google Maps sur Android |
+| Carte | **OpenStreetMap (Leaflet + WebView)** | **aucune clé API**, 100 % gratuit, fonctionne dans Expo Go, identique iOS/Android |
 | GPS / arrière-plan | **expo-location + expo-task-manager** | permissions gérées, foreground-service Android, background iOS |
 | Batterie | **expo-battery** | niveau + état de charge |
 
@@ -67,7 +67,8 @@ App-localisation/
 │       └── add-contact.tsx       # Ajouter / rejoindre un contact
 ├── components/                   # UI réutilisable
 │   ├── Avatar.tsx  Badges.tsx  Button.tsx  Input.tsx
-│   ├── Screen.tsx  States.tsx  MarkerBubble.tsx  ContactCard.tsx
+│   ├── Screen.tsx  States.tsx  ContactCard.tsx
+│   └── LeafletMap.tsx            # Carte OSM (Leaflet + WebView, sans clé)
 ├── hooks/
 │   ├── useContacts.ts            # Agrège contacts (profil+position+présence)
 │   └── useLocationTracking.ts    # Pipeline GPS de l'utilisateur
@@ -160,12 +161,11 @@ contact lié.**
 
 ## 🚀 Installation pas à pas
 
-> **À noter** : la création du **projet Firebase** et de la **clé Google Maps**
-> passe obligatoirement par une connexion à *ton* compte Google (OAuth +
-> facturation). Ces ressources sont liées à ton identité et ne peuvent pas être
-> provisionnées par un tiers. Tout le reste (code, règles, scripts, config) est
-> prêt : il ne te reste qu'à coller tes valeurs dans `.env` puis lancer
-> `npm run deploy:rules`.
+> **À noter** : la seule ressource externe à provisionner est le **projet
+> Firebase** (gratuit), qui passe par une connexion à *ton* compte Google — il
+> ne peut pas être créé par un tiers. La carte n'exige **aucune clé** (OSM).
+> Tout le reste (code, règles, scripts, config) est prêt : colle tes 7 valeurs
+> Firebase dans `.env` puis lance `npm run deploy:rules`.
 
 ### Prérequis
 - Node.js 18+
@@ -192,13 +192,11 @@ Toute la configuration vit dans **un seul fichier `.env`** (jamais commité).
    npm run deploy:rules  # lit le projet depuis ton .env
    ```
    (ou copie-colle `database.rules.json` dans l'onglet *Règles* de la console)
-6. *(Optionnel — push)* **Android** : ajoute une app Android
+6. *(Optionnel — notifications push)* **Android** : ajoute une app Android
    (package `com.geoshare.app`), télécharge le vrai `google-services.json` et
    remplace le placeholder à la racine.
-7. *(Optionnel — carte native Android)* crée une clé *Maps SDK for Android* dans
-   Google Cloud et mets-la dans `.env` → `GOOGLE_MAPS_ANDROID_API_KEY`.
-   *(iOS utilise Apple Maps, aucune clé nécessaire.)*
 
+> 🗺️ **La carte ne demande aucune clé** : elle utilise OpenStreetMap.
 > Dès que `.env` contient une vraie clé Firebase, l'app démarre. Sinon elle
 > affiche un écran « Configuration requise » au lieu de planter.
 
@@ -206,9 +204,11 @@ Toute la configuration vit dans **un seul fichier `.env`** (jamais commité).
 ```bash
 npx expo start
 ```
-> ⚠️ `react-native-maps` et la localisation en arrière-plan ne fonctionnent
-> **pas** dans Expo Go : pour les tester il faut un **development build**
-> (`eas build --profile development`). Le reste de l'app tourne dans Expo Go.
+> ✅ La carte OpenStreetMap, l'auth, les contacts et la localisation au premier
+> plan **fonctionnent dans Expo Go**.
+> ⚠️ Seule la **localisation en arrière-plan** (téléphone verrouillé) requiert un
+> **development build** (`eas build --profile development`), car elle dépend
+> d'un module natif de tâche en arrière-plan.
 
 ---
 

@@ -11,9 +11,6 @@ import type { ExpoConfig, ConfigContext } from 'expo/config';
  * of source control — only one place to configure.
  */
 
-const GOOGLE_MAPS_ANDROID_KEY =
-  process.env.GOOGLE_MAPS_ANDROID_API_KEY ?? 'REPLACE_WITH_YOUR_ANDROID_GOOGLE_MAPS_API_KEY';
-
 const EAS_PROJECT_ID =
   process.env.EAS_PROJECT_ID ?? '00000000-0000-0000-0000-000000000000';
 
@@ -72,9 +69,6 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       backgroundColor: '#2563EB',
     },
     edgeToEdgeEnabled: true,
-    config: {
-      googleMaps: { apiKey: GOOGLE_MAPS_ANDROID_KEY },
-    },
     permissions: [
       'ACCESS_FINE_LOCATION',
       'ACCESS_COARSE_LOCATION',
