@@ -186,23 +186,30 @@ contact lié.**
 npm run setup     # installe les deps + crée ton .env à partir de .env.example
 ```
 
-### 2. Configurer Firebase (une seule fois, un seul fichier)
-Toute la configuration vit dans **un seul fichier `.env`** (jamais commité).
+### 2. Configurer Firebase
 
+#### Option A — automatique (recommandé)
+Un seul `firebase login` (navigateur, une fois) et le script fait le reste —
+création du projet, app web, **écriture de `.env`**, instance Realtime Database,
+déploiement des règles :
+```bash
+npm run firebase:init
+```
+Puis **un seul clic** dans la console (non scriptable) :
+*Authentication → Sign-in method → Email/Password → Activer.*
+
+#### Option B — manuel (un seul fichier `.env`)
 1. Crée un projet sur https://console.firebase.google.com
 2. **Authentication → Sign-in method → Email/Password : Activer**
 3. **Realtime Database → Créer une base** (mode verrouillé)
-4. **Project Settings → Tes apps → Web** : copie les 7 valeurs de config et
-   colle-les dans **`.env`** (variables `EXPO_PUBLIC_FIREBASE_*`).
-5. Déploie les règles de sécurité :
-   ```bash
-   firebase login        # une fois
-   npm run deploy:rules  # lit le projet depuis ton .env
-   ```
-   (ou copie-colle `database.rules.json` dans l'onglet *Règles* de la console)
-6. *(Optionnel — notifications push)* **Android** : ajoute une app Android
-   (package `com.geoshare.app`), télécharge le vrai `google-services.json` et
-   remplace le placeholder à la racine.
+4. **Project Settings → Tes apps → Web** : copie les 7 valeurs et colle-les dans
+   **`.env`** (variables `EXPO_PUBLIC_FIREBASE_*`).
+5. `firebase login` puis `npm run deploy:rules` (ou colle `database.rules.json`
+   dans l'onglet *Règles*).
+
+> *(Optionnel — notifications push Android)* : ajoute une app Android
+> (package `com.geoshare.app`), télécharge le vrai `google-services.json` et
+> remplace le placeholder à la racine.
 
 > 🗺️ **La carte ne demande aucune clé** : elle utilise OpenStreetMap.
 > Dès que `.env` contient une vraie clé Firebase, l'app démarre. Sinon elle

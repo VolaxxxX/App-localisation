@@ -11,6 +11,7 @@
     "lint": "expo lint",
     "test": "jest",
     "setup": "bash scripts/setup.sh",
+    "firebase:init": "bash scripts/firebase-init.sh",
     "deploy:rules": "bash scripts/deploy-rules.sh",
     "doctor": "npx expo-doctor"
   },

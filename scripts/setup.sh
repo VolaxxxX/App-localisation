@@ -39,11 +39,13 @@ cat <<'NEXT'
 
 ──────────────────────────────────────────
 Next steps:
-  1. Edit .env with your Firebase Web config (Firebase Console → Project
-     Settings → Your apps → Web) and your Google Maps Android API key.
-  2. Deploy the database security rules:  npm run deploy:rules
-  3. Start the dev server:                 npx expo start
-     (Maps & background location require a dev build, not Expo Go:
-      eas build --profile development)
+  1. Configure Firebase automatically (one browser login, then it writes .env,
+     creates the DB and deploys rules):
+        npm run firebase:init
+     …then enable Email/Password in the console (one click).
+     Or do it manually — see README.md → "Option B".
+  2. Start the dev server:                 npx expo start
+     The OSM map + foreground location work in Expo Go; background location
+     needs a dev build (eas build --profile development).
 ──────────────────────────────────────────
 NEXT
