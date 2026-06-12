@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "REPLACE_WITH_YOUR_SENDER_ID",
+    "firebase_url": "https://REPLACE_WITH_YOUR_PROJECT-default-rtdb.firebaseio.com",
+    "project_id": "REPLACE_WITH_YOUR_PROJECT",
+    "storage_bucket": "REPLACE_WITH_YOUR_PROJECT.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:REPLACE_WITH_YOUR_SENDER_ID:android:REPLACE_WITH_YOUR_ANDROID_APP_ID",
+        "android_client_info": {
+          "package_name": "com.geoshare.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "REPLACE_WITH_YOUR_ANDROID_API_KEY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

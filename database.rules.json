@@ -1,0 +1,43 @@
+{
+  "rules": {
+    "users": {
+      ".read": "auth != null",
+      "$uid": {
+        ".write": "auth != null && auth.uid === $uid",
+        ".validate": "newData.hasChildren(['displayName', 'createdAt'])"
+      }
+    },
+
+    "codes": {
+      "$code": {
+        ".read": "auth != null",
+        ".write": "auth != null && (!data.exists() || data.val() === auth.uid) && (!newData.exists() || newData.val() === auth.uid)"
+      }
+    },
+
+    "connections": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        "$contactUid": {
+          ".write": "auth != null && (auth.uid === $uid || auth.uid === $contactUid)",
+          ".validate": "newData.isBoolean() || newData.hasChildren(['since'])"
+        }
+      }
+    },
+
+    "locations": {
+      "$uid": {
+        ".read": "auth != null && (auth.uid === $uid || root.child('connections').child($uid).child(auth.uid).exists())",
+        ".write": "auth != null && auth.uid === $uid",
+        ".validate": "newData.hasChildren(['lat', 'lng', 'updatedAt'])"
+      }
+    },
+
+    "presence": {
+      "$uid": {
+        ".read": "auth != null && (auth.uid === $uid || root.child('connections').child($uid).child(auth.uid).exists())",
+        ".write": "auth != null && auth.uid === $uid"
+      }
+    }
+  }
+}

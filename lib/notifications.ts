@@ -1,0 +1,86 @@
+import * as Notifications from 'expo-notifications';
+import { Platform } from 'react-native';
+import Constants from 'expo-constants';
+import { ref, update } from 'firebase/database';
+import { db } from './firebase';
+
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldShowBanner: true,
+    shouldShowList: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+  }),
+});
+
+/**
+ * Register for push notifications and store the Expo push token on the user's
+ * profile. Notifications are optional — every failure path is swallowed.
+ */
+export async function registerForPushNotifications(uid: string): Promise<void> {
+  try {
+    if (Platform.OS === 'android') {
+      await Notifications.setNotificationChannelAsync('default', {
+        name: 'GeoShare',
+        importance: Notifications.AndroidImportance.HIGH,
+        sound: 'default',
+        vibrationPattern: [0, 250, 250, 250],
+        lightColor: '#2563EB',
+        lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
+      });
+    }
+
+    const { status: existing } = await Notifications.getPermissionsAsync();
+    let finalStatus = existing;
+    if (existing !== 'granted') {
+      const { status } = await Notifications.requestPermissionsAsync();
+      finalStatus = status;
+    }
+    if (finalStatus !== 'granted') return;
+
+    const projectId =
+      Constants.expoConfig?.extra?.eas?.projectId ??
+      (Constants as any).easConfig?.projectId;
+    if (!projectId || projectId.startsWith('00000000')) return;
+
+    const tokenData = await Notifications.getExpoPushTokenAsync({ projectId });
+    await update(ref(db, `users/${uid}`), { pushToken: tokenData.data });
+  } catch {
+    // Notifications are optional — never block the app on failure.
+  }
+}
+
+/** Send a push notification via Expo's push service. */
+export async function sendPushNotification(
+  expoPushToken: string,
+  title: string,
+  body: string,
+): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const res = await fetch('https://exp.host/--/api/v2/push/send', {
+      method: 'POST',
+      headers: {
+        Accept: 'application/json',
+        'Accept-encoding': 'gzip, deflate',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        to: expoPushToken,
+        sound: 'default',
+        title,
+        body,
+        channelId: 'default',
+        priority: 'high',
+      }),
+    });
+    const json = await res.json();
+    const ticket = json?.data?.[0];
+    if (ticket?.status === 'error') {
+      return { ok: false, error: ticket.message ?? 'Unknown error' };
+    }
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: String(e) };
+  }
+}

@@ -1,0 +1,91 @@
+{
+  "expo": {
+    "name": "GeoShare",
+    "slug": "geoshare",
+    "owner": "volaxxxx",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "geoshare",
+    "userInterfaceStyle": "automatic",
+    "platforms": ["ios", "android"],
+    "newArchEnabled": true,
+    "icon": "./assets/icon.png",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0B1221"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.geoshare.app",
+      "config": {
+        "usesNonExemptEncryption": false
+      },
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "GeoShare utilise ta position pour la partager en temps réel avec tes contacts liés.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "GeoShare partage ta position avec tes contacts liés même lorsque l'application est en arrière-plan ou le téléphone verrouillé.",
+        "NSLocationAlwaysUsageDescription": "GeoShare partage ta position avec tes contacts liés même en arrière-plan.",
+        "UIBackgroundModes": ["location", "fetch"]
+      }
+    },
+    "android": {
+      "package": "com.geoshare.app",
+      "googleServicesFile": "./google-services.json",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#2563EB"
+      },
+      "edgeToEdgeEnabled": true,
+      "config": {
+        "googleMaps": {
+          "apiKey": "REPLACE_WITH_YOUR_ANDROID_GOOGLE_MAPS_API_KEY"
+        }
+      },
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_BACKGROUND_LOCATION",
+        "FOREGROUND_SERVICE",
+        "FOREGROUND_SERVICE_LOCATION",
+        "VIBRATE",
+        "RECEIVE_BOOT_COMPLETED",
+        "POST_NOTIFICATIONS",
+        "WAKE_LOCK"
+      ]
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "GeoShare partage ta position avec tes contacts liés même en arrière-plan.",
+          "locationWhenInUsePermission": "GeoShare utilise ta position pour la partager en temps réel avec tes contacts liés.",
+          "isAndroidBackgroundLocationEnabled": true,
+          "isAndroidForegroundServiceEnabled": true
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "color": "#2563EB"
+        }
+      ],
+      "expo-asset"
+    ],
+    "updates": {
+      "checkAutomatically": "ON_LOAD",
+      "fallbackToCacheTimeout": 3000
+    },
+    "extra": {
+      "eas": {
+        "projectId": "00000000-0000-0000-0000-000000000000"
+      }
+    },
+    "runtimeVersion": {
+      "policy": "sdkVersion"
+    },
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}

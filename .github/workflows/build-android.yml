@@ -1,0 +1,43 @@
+name: Build Android APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - claude/realtime-location-sharing-xtjlxa
+    paths:
+      - 'eas.json'
+      - 'app.json'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.npmrc'
+
+jobs:
+  build:
+    name: Build Android APK
+    runs-on: ubuntu-latest
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm install --force
+
+      - name: Install EAS CLI
+        run: npm install -g eas-cli
+
+      - name: Create or link EAS project
+        run: eas init --force --non-interactive
+
+      - name: Build Android APK
+        run: eas build --platform android --profile preview --non-interactive --no-wait
+
+      - name: Done
+        run: echo "✅ Build queued on Expo servers. Track it at https://expo.dev/accounts/volaxxxx/projects/geoshare/builds"
