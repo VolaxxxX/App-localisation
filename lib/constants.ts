@@ -9,6 +9,8 @@ export const STORAGE_KEYS = {
   sharing: 'geoshare.sharing',
   /** "1" / "0" — whether background tracking is enabled. */
   background: 'geoshare.background',
+  /** Last background history write timestamp (ms), for throttling. */
+  histTs: 'geoshare.histTs',
 } as const;
 
 /** Location accuracy / cadence tuning. */

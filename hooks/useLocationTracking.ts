@@ -2,7 +2,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState, type AppStateStatus } from 'react-native';
 import * as Battery from 'expo-battery';
 import { useAuth } from '@/lib/auth-context';
-import { writeLocation } from '@/lib/database';
+import { writeLocation, appendHistory } from '@/lib/database';
+import { distanceMeters } from '@/lib/format';
 import { toSample } from '@/lib/location-task';
 import {
   startForegroundWatch,
@@ -56,6 +57,7 @@ export function useLocationTracking() {
     charging: false,
   });
   const lastWriteRef = useRef(0);
+  const lastHistoryRef = useRef<{ t: number; lat: number; lng: number } | null>(null);
 
   const patch = useCallback((p: Partial<TrackingState>) => {
     setState((s) => ({ ...s, ...p }));
@@ -109,6 +111,22 @@ export function useLocationTracking() {
         await writeLocation(uid, sample);
       } catch {
         /* transient — next sample will retry */
+      }
+
+      // Append a sparse breadcrumb to history (>= 45 s AND >= 35 m apart) to
+      // build a trail without bloating the database.
+      const last = lastHistoryRef.current;
+      const movedEnough =
+        !last ||
+        distanceMeters(
+          { lat: last.lat, lng: last.lng },
+          { lat: sample.lat, lng: sample.lng },
+        ) >= 35;
+      if ((!last || now - last.t >= 45_000) && movedEnough) {
+        lastHistoryRef.current = { t: now, lat: sample.lat, lng: sample.lng };
+        appendHistory(uid, { lat: sample.lat, lng: sample.lng, t: sample.updatedAt }).catch(
+          () => {},
+        );
       }
     },
     [uid],

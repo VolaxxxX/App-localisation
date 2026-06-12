@@ -40,7 +40,17 @@ const fr: Dict = {
   // Tabs
   tabMap: 'Carte',
   tabContacts: 'Contacts',
+  tabHistory: 'Trajets',
   tabProfile: 'Profil',
+
+  // History
+  history: 'Trajets',
+  noHistory: 'Aucun trajet enregistré',
+  noHistoryMsg: 'Déplace-toi avec l\'app ouverte pour enregistrer un trajet.',
+  pointsRecorded: '{n} points',
+  deleteAccountConfirm:
+    'Cette action est définitive : ton compte, tes liens et ton historique seront supprimés. Continuer ?',
+  reauthNeeded: 'Reconnecte-toi puis réessaie pour supprimer ton compte.',
 
   // Map
   centerOnMe: 'Me centrer',
@@ -140,7 +150,16 @@ const en: Dict = {
 
   tabMap: 'Map',
   tabContacts: 'Contacts',
+  tabHistory: 'Trips',
   tabProfile: 'Profile',
+
+  history: 'Trips',
+  noHistory: 'No trips recorded yet',
+  noHistoryMsg: 'Move around with the app open to record a trail.',
+  pointsRecorded: '{n} points',
+  deleteAccountConfirm:
+    'This is permanent: your account, links and history will be deleted. Continue?',
+  reauthNeeded: 'Please sign in again, then retry to delete your account.',
 
   centerOnMe: 'Center on me',
   fitAll: 'Fit all',

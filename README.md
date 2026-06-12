@@ -19,6 +19,8 @@ chacun ne voit que la position des contacts auxquels il est explicitement lié.
   - marqueurs personnalisés : prénom, avatar emoji, couleur
   - batterie, dernière mise à jour, distance, précision GPS
 - 🟢 **Présence** en ligne / hors ligne (via `onDisconnect` Firebase)
+- 🛤️ **Historique des trajets** : trace le parcours récent de chaque personne
+- 🗑️ **Suppression de compte** (efface profil, liens, position et historique)
 - 📡 **Suivi en arrière-plan** (téléphone verrouillé) optimisé batterie
 - 🎯 **GPS haute précision** avec filtrage des points imprécis
 - 🛡️ **Règles de sécurité** : position lisible uniquement par les contacts liés
@@ -61,6 +63,7 @@ App-localisation/
 │   │   ├── _layout.tsx           # Barre d'onglets + TrackingProvider
 │   │   ├── map.tsx               # 🗺️ Carte temps réel (écran principal)
 │   │   ├── contacts.tsx          # 👥 Liste des contacts
+│   │   ├── history.tsx           # 🛤️ Trajets (trail par personne)
 │   │   └── profile.tsx           # ⚙️ Profil + paramètres
 │   └── (modals)/
 │       ├── _layout.tsx
@@ -71,6 +74,7 @@ App-localisation/
 │   └── LeafletMap.tsx            # Carte OSM (Leaflet + WebView, sans clé)
 ├── hooks/
 │   ├── useContacts.ts            # Agrège contacts (profil+position+présence)
+│   ├── useHistory.ts             # Trail (breadcrumbs) d'une personne
 │   └── useLocationTracking.ts    # Pipeline GPS de l'utilisateur
 ├── lib/
 │   ├── firebase.ts               # Init app + RTDB
@@ -123,6 +127,10 @@ locations/$uid
 presence/$uid
   state: "online" | "offline"
   lastChanged: number
+
+history/$uid/$pushId        # breadcrumbs chronologiques (push keys = temps)
+  lat, lng: number
+  t: number                 # timestamp
 ```
 
 ### Modèle de liens
@@ -138,7 +146,7 @@ personnes → liaisons multiples.
 - `locations/$uid` : **lecture autorisée uniquement** si le lecteur figure dans
   `connections/$uid` (ou est le propriétaire) ; écriture réservée au
   propriétaire.
-- `presence/$uid` : même logique de lecture restreinte.
+- `presence/$uid` et `history/$uid` : même logique de lecture restreinte.
 - `codes/$CODE` : un code ne peut pointer que vers son propre `uid`.
 
 Résultat : **personne ne peut lire la position d'un utilisateur sans être un

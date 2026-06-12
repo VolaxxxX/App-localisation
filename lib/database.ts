@@ -3,8 +3,11 @@ import {
   get,
   set,
   update,
-  remove,
+  push,
   onValue,
+  query,
+  orderByKey,
+  limitToLast,
   serverTimestamp,
   type DatabaseReference,
 } from 'firebase/database';
@@ -13,6 +16,7 @@ import type {
   UserProfile,
   LocationSample,
   Presence,
+  HistoryPoint,
 } from '@/types';
 
 /* -------------------------------------------------------------------------- */
@@ -193,6 +197,16 @@ export function subscribeToConnections(
   );
 }
 
+/** One-shot read of a user's linked contact uids. */
+export async function getConnectionUids(uid: string): Promise<string[]> {
+  const snap = await get(ref(db, `connections/${uid}`));
+  const out: string[] = [];
+  snap.forEach((child) => {
+    if (child.key) out.push(child.key);
+  });
+  return out;
+}
+
 /* -------------------------------------------------------------------------- */
 /*  Locations                                                                  */
 /* -------------------------------------------------------------------------- */
@@ -217,6 +231,73 @@ export function subscribeToLocation(
     (snap) => onData(snap.exists() ? (snap.val() as LocationSample) : null),
     (err) => onError?.(err),
   );
+}
+
+/* -------------------------------------------------------------------------- */
+/*  History (breadcrumb trail)                                                 */
+/* -------------------------------------------------------------------------- */
+
+/** Append a breadcrumb to a user's history (chronological push keys). */
+export async function appendHistory(
+  uid: string,
+  point: HistoryPoint,
+): Promise<void> {
+  await push(ref(db, `history/${uid}`), point);
+}
+
+/**
+ * Subscribe to the most recent `limit` history points for a user, ordered
+ * oldest → newest. Returns an unsubscribe function.
+ */
+export function subscribeToHistory(
+  uid: string,
+  limit: number,
+  onData: (points: HistoryPoint[]) => void,
+  onError?: (err: Error) => void,
+): () => void {
+  const q = query(ref(db, `history/${uid}`), orderByKey(), limitToLast(limit));
+  return onValue(
+    q,
+    (snap) => {
+      const out: HistoryPoint[] = [];
+      snap.forEach((child) => {
+        const v = child.val();
+        if (v && typeof v.lat === 'number' && typeof v.lng === 'number') {
+          out.push({ lat: v.lat, lng: v.lng, t: v.t ?? 0 });
+        }
+      });
+      onData(out);
+    },
+    (err) => onError?.(err),
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Account deletion                                                           */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Erase all Realtime Database data owned by a user: profile, share code, live
+ * location, presence, history, and every mutual connection edge. Done as a
+ * single atomic multi-path update.
+ */
+export async function deleteUserData(
+  uid: string,
+  shareCode: string | undefined,
+  contactUids: string[],
+): Promise<void> {
+  const updates: Record<string, null> = {
+    [`users/${uid}`]: null,
+    [`locations/${uid}`]: null,
+    [`presence/${uid}`]: null,
+    [`history/${uid}`]: null,
+    [`connections/${uid}`]: null,
+  };
+  if (shareCode) updates[`codes/${shareCode}`] = null;
+  for (const cid of contactUids) {
+    updates[`connections/${cid}/${uid}`] = null;
+  }
+  await update(ref(db), updates);
 }
 
 /* -------------------------------------------------------------------------- */

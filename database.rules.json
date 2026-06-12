@@ -33,6 +33,13 @@
       }
     },
 
+    "history": {
+      "$uid": {
+        ".read": "auth != null && (auth.uid === $uid || root.child('connections').child($uid).child(auth.uid).exists())",
+        ".write": "auth != null && auth.uid === $uid"
+      }
+    },
+
     "presence": {
       "$uid": {
         ".read": "auth != null && (auth.uid === $uid || root.child('connections').child($uid).child(auth.uid).exists())",

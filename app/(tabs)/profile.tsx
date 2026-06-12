@@ -26,7 +26,8 @@ import type { Language } from '@/types';
 export default function ProfileScreen() {
   const c = useColors();
   const { t, lang } = useT();
-  const { profile, firebaseUser, signOut, updateProfile, updateLanguage } = useAuth();
+  const { profile, firebaseUser, signOut, deleteAccount, updateProfile, updateLanguage } =
+    useAuth();
   const {
     sharing,
     backgroundEnabled,
@@ -85,6 +86,29 @@ export default function ProfileScreen() {
     if (v && !ok) {
       Alert.alert(t('permissionDenied'), t('permissionDeniedMsg'));
     }
+  };
+
+  const onDeleteAccount = () => {
+    Alert.alert(t('deleteAccount'), t('deleteAccountConfirm'), [
+      { text: t('cancel'), style: 'cancel' },
+      {
+        text: t('deleteAccount'),
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await deleteAccount();
+            router.replace('/(auth)/login');
+          } catch (e: any) {
+            if (e?.code === 'auth/requires-recent-login') {
+              Alert.alert(t('errorTitle'), t('reauthNeeded'));
+              router.replace('/(auth)/login');
+            } else {
+              Alert.alert(t('errorTitle'), t('somethingWrong'));
+            }
+          }
+        },
+      },
+    ]);
   };
 
   const battery = formatBattery(myLocation?.battery);
@@ -265,6 +289,15 @@ export default function ProfileScreen() {
         >
           <Text style={[styles.signOutText, { color: c.danger }]}>{t('signOut')}</Text>
         </Pressable>
+
+        {/* Danger zone */}
+        <Text style={[styles.dangerLabel, { color: c.textMuted }]}>{t('dangerZone')}</Text>
+        <Pressable
+          onPress={onDeleteAccount}
+          style={[styles.deleteBtn, { backgroundColor: c.danger }]}
+        >
+          <Text style={styles.deleteText}>🗑️ {t('deleteAccount')}</Text>
+        </Pressable>
       </ScrollView>
     </Screen>
   );
@@ -366,4 +399,21 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   signOutText: { fontSize: 16, fontWeight: '800' },
+
+  dangerLabel: {
+    fontSize: 12,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+    marginTop: 24,
+    marginBottom: 10,
+  },
+  deleteBtn: {
+    height: 50,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  deleteText: { fontSize: 15, fontWeight: '800', color: '#FFFFFF' },
 });
+

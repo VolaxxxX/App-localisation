@@ -58,6 +58,14 @@ export interface Contact {
   since: number;
 }
 
+/** A compact historical breadcrumb (RTDB path: `history/$uid/$pushId`). */
+export interface HistoryPoint {
+  lat: number;
+  lng: number;
+  /** Timestamp (ms since epoch). */
+  t: number;
+}
+
 export type Language = 'fr' | 'en';
 
 /** Coordinates region used by the map. */

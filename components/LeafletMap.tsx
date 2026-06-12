@@ -31,6 +31,9 @@ interface LeafletMapProps {
   initialCenter: { lat: number; lng: number; zoom: number };
   dark?: boolean;
   onMarkerPress?: (id: string) => void;
+  /** Optional breadcrumb trail to draw as a polyline. */
+  path?: Array<{ lat: number; lng: number }>;
+  pathColor?: string;
 }
 
 /**
@@ -42,7 +45,10 @@ interface LeafletMapProps {
  *   page → RN  : window.ReactNativeWebView.postMessage(JSON) → onMessage
  */
 export const LeafletMap = forwardRef<LeafletMapHandle, LeafletMapProps>(
-  function LeafletMap({ markers, initialCenter, dark, onMarkerPress }, ref) {
+  function LeafletMap(
+    { markers, initialCenter, dark, onMarkerPress, path, pathColor },
+    ref,
+  ) {
     const webRef = useRef<WebView>(null);
     const readyRef = useRef(false);
     const [, force] = useState(0);
@@ -73,6 +79,24 @@ export const LeafletMap = forwardRef<LeafletMapHandle, LeafletMapProps>(
       pushMarkers(markers);
     }
 
+    // Re-inject the path whenever it changes (after the page is ready).
+    const pushPath = useCallback(
+      (pts: Array<{ lat: number; lng: number }> | undefined, color: string) => {
+        if (!readyRef.current) return;
+        inject(`window.__setPath(${JSON.stringify(pts ?? [])}, ${JSON.stringify(color)})`);
+      },
+      [inject],
+    );
+    const pathKey = useMemo(
+      () => `${pathColor ?? ''}#${(path ?? []).length}:${path?.[path.length - 1]?.lat ?? ''}`,
+      [path, pathColor],
+    );
+    const lastPathKey = useRef<string>('');
+    if (pathKey !== lastPathKey.current) {
+      lastPathKey.current = pathKey;
+      pushPath(path, pathColor ?? '#2563EB');
+    }
+
     useImperativeHandle(
       ref,
       () => ({
@@ -94,12 +118,13 @@ export const LeafletMap = forwardRef<LeafletMapHandle, LeafletMapProps>(
         if (msg?.type === 'ready') {
           readyRef.current = true;
           pushMarkers(markers);
+          pushPath(path, pathColor ?? '#2563EB');
           force((n) => n + 1);
         } else if (msg?.type === 'marker' && msg.id) {
           onMarkerPress?.(msg.id);
         }
       },
-      [markers, onMarkerPress, pushMarkers],
+      [markers, onMarkerPress, pushMarkers, pushPath, path, pathColor],
     );
 
     const html = useMemo(
@@ -187,6 +212,7 @@ function buildHtml(
       .addTo(map);
 
     var layer = L.layerGroup().addTo(map);
+    var pathLine = null;
     var markerIndex = {};
 
     function send(obj) {
@@ -217,6 +243,15 @@ function buildHtml(
         mk.addTo(layer);
         markerIndex[m.id] = mk;
       });
+    };
+
+    window.__setPath = function (pts, color) {
+      if (pathLine) { map.removeLayer(pathLine); pathLine = null; }
+      if (!pts || pts.length < 2) return;
+      var latlngs = pts.map(function (p) { return [p.lat, p.lng]; });
+      pathLine = L.polyline(latlngs, {
+        color: color || '#2563EB', weight: 4, opacity: 0.85, lineJoin: 'round'
+      }).addTo(map);
     };
 
     window.__centerOn = function (lat, lng, zoom) {
