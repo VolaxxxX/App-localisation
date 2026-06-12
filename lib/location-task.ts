@@ -2,7 +2,7 @@ import * as TaskManager from 'expo-task-manager';
 import type { LocationObject } from 'expo-location';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { BACKGROUND_LOCATION_TASK, STORAGE_KEYS, LOCATION_TUNING } from './constants';
-import { writeLocation } from './database';
+import { writeLocation, appendHistory } from './database';
 import { waitForAuthReady } from './firebase-auth';
 import type { LocationSample } from '@/types';
 
@@ -94,7 +94,21 @@ TaskManager.defineTask(BACKGROUND_LOCATION_TASK, async ({ data, error }) => {
       ) ?? fresh[0];
 
     const battery = await readBattery();
-    await writeLocation(uid, toSample(best, battery));
+    const sample = toSample(best, battery);
+    await writeLocation(uid, sample);
+
+    // Sparse history breadcrumb in the background (time-throttled to ≥ 90 s).
+    try {
+      const now = Date.now();
+      const lastRaw = await AsyncStorage.getItem(STORAGE_KEYS.histTs);
+      const last = lastRaw ? parseInt(lastRaw, 10) : 0;
+      if (now - last >= 90_000) {
+        await AsyncStorage.setItem(STORAGE_KEYS.histTs, String(now));
+        await appendHistory(uid, { lat: sample.lat, lng: sample.lng, t: sample.updatedAt });
+      }
+    } catch {
+      /* history is best-effort */
+    }
   } catch (e) {
     console.warn('[bg-location] write failed:', (e as Error)?.message);
   }

@@ -19,9 +19,15 @@ Le partage de position produit un flux continu de petites écritures. RTDB :
   document lu/écrit ;
 - fournit `onDisconnect`, parfait pour une **présence** fiable sans serveur.
 
-### Carte : react-native-maps
-Apple Maps sur iOS (**aucune clé**), Google Maps sur Android. Marqueurs
-personnalisés (avatar emoji + couleur) rendus comme vues natives.
+### Carte : OpenStreetMap (Leaflet dans une WebView)
+Choix dicté par la contrainte « gratuité maximale » : **aucune clé API**, aucun
+compte Google Cloud, rendu **identique sur iOS et Android**, et — avantage clé —
+**fonctionne dans Expo Go** (contrairement aux modules de carte natifs). Les
+marqueurs personnalisés (bulle colorée + avatar emoji) sont dessinés en HTML/CSS
+via `L.divIcon`. La communication RN ↔ page se fait par `injectJavaScript`
+(markers, recentrage, fit) et `postMessage` (taps, handshake « ready »).
+*Compromis assumé* : performance de rendu légèrement inférieure à une carte
+native pour de très grands volumes de marqueurs — négligeable ici.
 
 ### Architecture
 - **Couche données isolée** (`lib/database.ts`) : toutes les lectures/écritures
@@ -75,10 +81,14 @@ personnalisés (avatar emoji + couleur) rendus comme vues natives.
 
 ## 5. Limites connues
 
-- **Expo Go** ne supporte ni `react-native-maps` ni la localisation en
-  arrière-plan : un **development build** est nécessaire pour les tester.
-- La **carte Android** requiert une clé Google Maps (gratuite, quota large) ;
-  iOS n'en a pas besoin.
+- La **localisation en arrière-plan** (téléphone verrouillé) nécessite un
+  **development build** (module natif de tâche) ; la carte, l'auth, les contacts
+  et la localisation au premier plan fonctionnent dans **Expo Go**.
+- La carte OSM charge **Leaflet via CDN** (unpkg) et les tuiles OpenStreetMap :
+  une connexion réseau est requise (comme toute carte en ligne). Pour un usage
+  100 % hors-réseau, il faudrait empaqueter Leaflet et un cache de tuiles.
+- Pour de **très grands groupes** de marqueurs, une carte native serait plus
+  fluide ; un clustering Leaflet suffirait à mitiger.
 - L'écriture **en arrière-plan app totalement tuée** dépend de la restauration
   de la session Firebase dans le contexte headless ; gérée via
   `waitForAuthReady`, mais soumise aux limitations OS d'économie d'énergie

@@ -13,6 +13,8 @@ import {
   updateUser,
   subscribeToProfile,
   reserveUniqueCode,
+  getConnectionUids,
+  deleteUserData,
 } from './database';
 import { setUidFlag } from './location-service';
 import { startPresence } from './presence';
@@ -29,6 +31,7 @@ interface AuthContextType {
   signUp: (email: string, password: string, displayName: string) => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
+  deleteAccount: () => Promise<void>;
   updateProfile: (patch: Partial<UserProfile>) => Promise<void>;
   updateLanguage: (lang: Language) => Promise<void>;
 }
@@ -187,6 +190,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setProfile(null);
   };
 
+  const deleteAccount = async () => {
+    if (!authRef.current || !faRef.current) return;
+    const user = authRef.current.currentUser;
+    if (!user) return;
+
+    // 1. Remove all RTDB data (profile, code, location, presence, history,
+    //    and reciprocal connection edges) while still authenticated.
+    const contactUids = await getConnectionUids(user.uid);
+    await deleteUserData(user.uid, profile?.shareCode, contactUids);
+
+    // 2. Tear down local listeners/flags.
+    presenceCleanup.current?.();
+    presenceCleanup.current = null;
+    await setUidFlag(null);
+
+    // 3. Delete the Firebase Auth account. May require a recent login.
+    try {
+      await user.delete();
+    } catch (e: any) {
+      if (e?.code === 'auth/requires-recent-login') {
+        // Sign out so the user can re-authenticate and retry.
+        await faRef.current.signOut(authRef.current);
+        const err = new Error('reauth-needed') as any;
+        err.code = 'auth/requires-recent-login';
+        throw err;
+      }
+      throw e;
+    }
+    setProfile(null);
+  };
+
   const updateProfile = async (patch: Partial<UserProfile>) => {
     if (!firebaseUser || !profile) return;
     await updateUser(firebaseUser.uid, patch);
@@ -207,6 +241,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         signUp,
         signIn,
         signOut,
+        deleteAccount,
         updateProfile,
         updateLanguage,
       }}

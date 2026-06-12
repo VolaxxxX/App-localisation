@@ -7,7 +7,7 @@ on:
       - claude/realtime-location-sharing-xtjlxa
     paths:
       - 'eas.json'
-      - 'app.json'
+      - 'app.config.ts'
       - 'package.json'
       - 'package-lock.json'
       - '.npmrc'
@@ -19,25 +19,43 @@ jobs:
     env:
       EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
     steps:
+      - name: Check EXPO_TOKEN
+        id: guard
+        run: |
+          if [ -z "$EXPO_TOKEN" ]; then
+            echo "has_token=false" >> "$GITHUB_OUTPUT"
+            echo "⏭️  EXPO_TOKEN secret not set — skipping EAS build."
+            echo "Add it in repo Settings → Secrets → Actions to enable cloud builds."
+          else
+            echo "has_token=true" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Checkout code
+        if: steps.guard.outputs.has_token == 'true'
         uses: actions/checkout@v4
 
       - name: Setup Node.js
+        if: steps.guard.outputs.has_token == 'true'
         uses: actions/setup-node@v4
         with:
           node-version: 20
 
       - name: Install dependencies
+        if: steps.guard.outputs.has_token == 'true'
         run: npm install --force
 
       - name: Install EAS CLI
+        if: steps.guard.outputs.has_token == 'true'
         run: npm install -g eas-cli
 
       - name: Create or link EAS project
+        if: steps.guard.outputs.has_token == 'true'
         run: eas init --force --non-interactive
 
       - name: Build Android APK
+        if: steps.guard.outputs.has_token == 'true'
         run: eas build --platform android --profile preview --non-interactive --no-wait
 
       - name: Done
+        if: steps.guard.outputs.has_token == 'true'
         run: echo "✅ Build queued on Expo servers. Track it at https://expo.dev/accounts/volaxxxx/projects/geoshare/builds"

@@ -1,14 +1,6 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import {
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { useCallback, useMemo, useRef } from 'react';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import MapView, { Marker, PROVIDER_GOOGLE, type Region } from 'react-native-maps';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useAuth } from '@/lib/auth-context';
@@ -16,18 +8,13 @@ import { useTracking } from '@/lib/tracking-context';
 import { useContacts } from '@/hooks/useContacts';
 import { useColors, useIsDark } from '@/lib/useColors';
 import { useT } from '@/lib/useT';
-import { MarkerBubble } from '@/components/MarkerBubble';
+import { LeafletMap, type LeafletMapHandle, type MapMarker } from '@/components/LeafletMap';
 import { Avatar } from '@/components/Avatar';
 import { Button } from '@/components/Button';
 import { timeAgo } from '@/lib/format';
 import type { Contact } from '@/types';
 
-const DEFAULT_REGION: Region = {
-  latitude: 48.8566,
-  longitude: 2.3522,
-  latitudeDelta: 0.05,
-  longitudeDelta: 0.05,
-};
+const DEFAULT_CENTER = { lat: 48.8566, lng: 2.3522, zoom: 12 };
 
 export default function MapScreen() {
   const c = useColors();
@@ -46,74 +33,73 @@ export default function MapScreen() {
   } = useTracking();
   const { contacts } = useContacts();
 
-  const mapRef = useRef<MapView>(null);
+  const mapRef = useRef<LeafletMapHandle>(null);
 
   const locatedContacts = useMemo(
     () => contacts.filter((ct) => ct.location),
     [contacts],
   );
 
-  // react-native-maps renders blank custom markers on Android when
-  // tracksViewChanges is false before the marker view has laid out. Keep it
-  // true briefly (on mount and whenever the marker set / own glyph changes),
-  // then disable it so coordinate updates don't trigger constant redraws.
-  const [tracksChanges, setTracksChanges] = useState(true);
-  const markerSignature =
-    locatedContacts.map((ct) => `${ct.profile.uid}:${ct.profile.avatar}:${ct.profile.color}`).join('|') +
-    `#${profile?.avatar ?? ''}:${profile?.color ?? ''}`;
-  useEffect(() => {
-    setTracksChanges(true);
-    const id = setTimeout(() => setTracksChanges(false), 1800);
-    return () => clearTimeout(id);
-  }, [markerSignature]);
+  const markers = useMemo<MapMarker[]>(() => {
+    const list: MapMarker[] = [];
+    if (myLocation && profile) {
+      list.push({
+        id: 'me',
+        lat: myLocation.lat,
+        lng: myLocation.lng,
+        emoji: profile.avatar,
+        color: profile.color,
+        dimmed: !sharing,
+        isMe: true,
+      });
+    }
+    for (const ct of locatedContacts) {
+      list.push({
+        id: ct.profile.uid,
+        lat: ct.location!.lat,
+        lng: ct.location!.lng,
+        emoji: ct.profile.avatar,
+        color: ct.profile.color,
+        dimmed: ct.presence?.state !== 'online',
+      });
+    }
+    return list;
+  }, [myLocation, profile, sharing, locatedContacts]);
 
-  const initialRegion: Region = myLocation
-    ? {
-        latitude: myLocation.lat,
-        longitude: myLocation.lng,
-        latitudeDelta: 0.01,
-        longitudeDelta: 0.01,
-      }
-    : DEFAULT_REGION;
+  const initialCenter = myLocation
+    ? { lat: myLocation.lat, lng: myLocation.lng, zoom: 16 }
+    : DEFAULT_CENTER;
+
+  const accuracyCircle = useMemo(
+    () =>
+      myLocation && profile && myLocation.accuracy && myLocation.accuracy > 0
+        ? {
+            lat: myLocation.lat,
+            lng: myLocation.lng,
+            radius: myLocation.accuracy,
+            color: profile.color,
+          }
+        : null,
+    [myLocation, profile],
+  );
 
   const centerOnMe = useCallback(() => {
-    if (!myLocation) return;
-    mapRef.current?.animateToRegion(
-      {
-        latitude: myLocation.lat,
-        longitude: myLocation.lng,
-        latitudeDelta: 0.005,
-        longitudeDelta: 0.005,
-      },
-      450,
-    );
+    if (myLocation) mapRef.current?.centerOn(myLocation.lat, myLocation.lng, 16);
   }, [myLocation]);
 
-  const centerOn = useCallback((lat: number, lng: number) => {
-    mapRef.current?.animateToRegion(
-      { latitude: lat, longitude: lng, latitudeDelta: 0.005, longitudeDelta: 0.005 },
-      450,
-    );
-  }, []);
+  const fitAll = useCallback(() => mapRef.current?.fitAll(), []);
 
-  const fitAll = useCallback(() => {
-    const points = [
-      ...(myLocation ? [{ latitude: myLocation.lat, longitude: myLocation.lng }] : []),
-      ...locatedContacts.map((ct) => ({
-        latitude: ct.location!.lat,
-        longitude: ct.location!.lng,
-      })),
-    ];
-    if (points.length === 0) return;
-    if (points.length === 1) {
-      centerOn(points[0].latitude, points[0].longitude);
-      return;
-    }
-    mapRef.current?.fitToCoordinates(points, {
-      edgePadding: { top: 120, right: 80, bottom: 220, left: 80 },
-      animated: true,
-    });
-  }, [myLocation, locatedContacts, centerOn]);
+  const onMarkerPress = useCallback(
+    (id: string) => {
+      if (id === 'me') {
+        centerOnMe();
+        return;
+      }
+      const ct = locatedContacts.find((x) => x.profile.uid === id);
+      if (ct?.location) mapRef.current?.centerOn(ct.location.lat, ct.location.lng, 16);
+    },
+    [centerOnMe, locatedContacts],
+  );
 
   const permissionDenied = permission === 'denied';
   const gpsOff = !servicesEnabled;
@@ -122,48 +108,14 @@ export default function MapScreen() {
     <View style={styles.root}>
       <StatusBar style={dark ? 'light' : 'dark'} />
 
-      <MapView
+      <LeafletMap
         ref={mapRef}
-        style={StyleSheet.absoluteFill}
-        provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
-        initialRegion={initialRegion}
-        showsUserLocation={false}
-        showsMyLocationButton={false}
-        showsCompass={false}
-        toolbarEnabled={false}
-        userInterfaceStyle={dark ? 'dark' : 'light'}
-      >
-        {/* My own marker */}
-        {myLocation && profile ? (
-          <Marker
-            coordinate={{ latitude: myLocation.lat, longitude: myLocation.lng }}
-            anchor={{ x: 0.5, y: 1 }}
-            zIndex={10}
-            title={t('you')}
-            tracksViewChanges={tracksChanges}
-          >
-            <MarkerBubble emoji={profile.avatar} color={profile.color} dimmed={!sharing} />
-          </Marker>
-        ) : null}
-
-        {/* Contact markers */}
-        {locatedContacts.map((ct) => (
-          <Marker
-            key={ct.profile.uid}
-            coordinate={{ latitude: ct.location!.lat, longitude: ct.location!.lng }}
-            anchor={{ x: 0.5, y: 1 }}
-            title={ct.profile.displayName}
-            description={`${t('updatedAgo')} ${timeAgo(ct.location!.updatedAt, lang)}`}
-            tracksViewChanges={tracksChanges}
-          >
-            <MarkerBubble
-              emoji={ct.profile.avatar}
-              color={ct.profile.color}
-              dimmed={ct.presence?.state !== 'online'}
-            />
-          </Marker>
-        ))}
-      </MapView>
+        markers={markers}
+        initialCenter={initialCenter}
+        dark={dark}
+        accuracy={accuracyCircle}
+        onMarkerPress={onMarkerPress}
+      />
 
       {/* Top status pill */}
       <View style={[styles.topBar, { top: insets.top + 8 }]} pointerEvents="box-none">
@@ -235,7 +187,7 @@ export default function MapScreen() {
             locatedContacts.map((ct: Contact) => (
               <Pressable
                 key={ct.profile.uid}
-                onPress={() => centerOn(ct.location!.lat, ct.location!.lng)}
+                onPress={() => mapRef.current?.centerOn(ct.location!.lat, ct.location!.lng, 16)}
                 style={[styles.chip, { backgroundColor: c.surface }]}
               >
                 <Avatar

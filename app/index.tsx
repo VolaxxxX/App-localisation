@@ -3,14 +3,32 @@ import { View, Text, StyleSheet } from 'react-native';
 import { useAuth } from '@/lib/auth-context';
 import { LoadingView } from '@/components/States';
 import { useColors } from '@/lib/useColors';
+import { isFirebaseConfigured } from '@/lib/firebase';
 
 /**
  * Entry redirect. Decides between the auth flow and the main app based on the
- * restored session. Surfaces a hard auth-init error if firebase/auth failed.
+ * restored session. Surfaces a setup hint if Firebase has not been configured,
+ * or a hard auth-init error if firebase/auth failed.
  */
 export default function Index() {
   const { loading, firebaseUser, authError } = useAuth();
   const c = useColors();
+
+  if (!isFirebaseConfigured) {
+    return (
+      <View style={[styles.center, { backgroundColor: c.background }]}>
+        <Text style={styles.emoji}>🔧</Text>
+        <Text style={[styles.title, { color: c.text }]}>Configuration requise</Text>
+        <Text style={[styles.body, { color: c.textMuted }]}>
+          Renseigne tes identifiants Firebase pour démarrer.
+        </Text>
+        <Text style={[styles.hint, { color: c.textMuted }]}>
+          Copie .env.example vers .env et remplis les variables{'\n'}
+          EXPO_PUBLIC_FIREBASE_* (voir README.md → Installation).
+        </Text>
+      </View>
+    );
+  }
 
   if (authError) {
     return (
