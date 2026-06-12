@@ -160,6 +160,13 @@ contact lié.**
 
 ## 🚀 Installation pas à pas
 
+> **À noter** : la création du **projet Firebase** et de la **clé Google Maps**
+> passe obligatoirement par une connexion à *ton* compte Google (OAuth +
+> facturation). Ces ressources sont liées à ton identité et ne peuvent pas être
+> provisionnées par un tiers. Tout le reste (code, règles, scripts, config) est
+> prêt : il ne te reste qu'à coller tes valeurs dans `.env` puis lancer
+> `npm run deploy:rules`.
+
 ### Prérequis
 - Node.js 18+
 - `npm install -g eas-cli` (pour les builds)
@@ -168,28 +175,32 @@ contact lié.**
 
 ### 1. Cloner & installer
 ```bash
-npm install
+npm run setup     # installe les deps + crée ton .env à partir de .env.example
 ```
 
-### 2. Configurer Firebase
+### 2. Configurer Firebase (une seule fois, un seul fichier)
+Toute la configuration vit dans **un seul fichier `.env`** (jamais commité).
+
 1. Crée un projet sur https://console.firebase.google.com
 2. **Authentication → Sign-in method → Email/Password : Activer**
 3. **Realtime Database → Créer une base** (mode verrouillé)
-4. Déploie les règles de sécurité :
+4. **Project Settings → Tes apps → Web** : copie les 7 valeurs de config et
+   colle-les dans **`.env`** (variables `EXPO_PUBLIC_FIREBASE_*`).
+5. Déploie les règles de sécurité :
    ```bash
-   npm install -g firebase-tools
-   firebase login
-   firebase use --add        # sélectionne ton projet
-   firebase deploy --only database
+   firebase login        # une fois
+   npm run deploy:rules  # lit le projet depuis ton .env
    ```
    (ou copie-colle `database.rules.json` dans l'onglet *Règles* de la console)
-5. **Project Settings → Tes apps → Web** : copie la config et remplace les
-   placeholders dans **`lib/firebase.ts`**.
-6. **Android** : ajoute une app Android (package `com.geoshare.app`),
-   télécharge le vrai `google-services.json` et remplace le placeholder.
-7. **Carte Android** : crée une clé *Maps SDK for Android* dans Google Cloud et
-   colle-la dans `app.json` → `android.config.googleMaps.apiKey`.
+6. *(Optionnel — push)* **Android** : ajoute une app Android
+   (package `com.geoshare.app`), télécharge le vrai `google-services.json` et
+   remplace le placeholder à la racine.
+7. *(Optionnel — carte native Android)* crée une clé *Maps SDK for Android* dans
+   Google Cloud et mets-la dans `.env` → `GOOGLE_MAPS_ANDROID_API_KEY`.
    *(iOS utilise Apple Maps, aucune clé nécessaire.)*
+
+> Dès que `.env` contient une vraie clé Firebase, l'app démarre. Sinon elle
+> affiche un écran « Configuration requise » au lieu de planter.
 
 ### 3. Lancer en développement
 ```bash
