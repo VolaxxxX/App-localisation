@@ -70,6 +70,19 @@ export default function MapScreen() {
     ? { lat: myLocation.lat, lng: myLocation.lng, zoom: 16 }
     : DEFAULT_CENTER;
 
+  const accuracyCircle = useMemo(
+    () =>
+      myLocation && profile && myLocation.accuracy && myLocation.accuracy > 0
+        ? {
+            lat: myLocation.lat,
+            lng: myLocation.lng,
+            radius: myLocation.accuracy,
+            color: profile.color,
+          }
+        : null,
+    [myLocation, profile],
+  );
+
   const centerOnMe = useCallback(() => {
     if (myLocation) mapRef.current?.centerOn(myLocation.lat, myLocation.lng, 16);
   }, [myLocation]);
@@ -100,6 +113,7 @@ export default function MapScreen() {
         markers={markers}
         initialCenter={initialCenter}
         dark={dark}
+        accuracy={accuracyCircle}
         onMarkerPress={onMarkerPress}
       />
 

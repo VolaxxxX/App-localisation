@@ -13,7 +13,7 @@ interface ContactState {
   profile: UserProfile | null;
   location: LocationSample | null;
   presence: Presence | null;
-  unsubs: Array<() => void>;
+  unsubs: (() => void)[];
 }
 
 /**

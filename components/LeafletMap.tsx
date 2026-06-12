@@ -1,6 +1,7 @@
 import React, {
   forwardRef,
   useCallback,
+  useEffect,
   useImperativeHandle,
   useMemo,
   useRef,
@@ -32,8 +33,10 @@ interface LeafletMapProps {
   dark?: boolean;
   onMarkerPress?: (id: string) => void;
   /** Optional breadcrumb trail to draw as a polyline. */
-  path?: Array<{ lat: number; lng: number }>;
+  path?: { lat: number; lng: number }[];
   pathColor?: string;
+  /** Optional GPS accuracy circle (metres) drawn around a point. */
+  accuracy?: { lat: number; lng: number; radius: number; color: string } | null;
 }
 
 /**
@@ -46,56 +49,67 @@ interface LeafletMapProps {
  */
 export const LeafletMap = forwardRef<LeafletMapHandle, LeafletMapProps>(
   function LeafletMap(
-    { markers, initialCenter, dark, onMarkerPress, path, pathColor },
+    { markers, initialCenter, dark, onMarkerPress, path, pathColor, accuracy },
     ref,
   ) {
     const webRef = useRef<WebView>(null);
-    const readyRef = useRef(false);
-    const [, force] = useState(0);
+    const [ready, setReady] = useState(false);
 
     const inject = useCallback((js: string) => {
       webRef.current?.injectJavaScript(`${js}; true;`);
     }, []);
 
-    const pushMarkers = useCallback(
-      (list: MapMarker[]) => {
-        if (!readyRef.current) return;
-        inject(`window.__setMarkers(${JSON.stringify(list)})`);
-      },
-      [inject],
-    );
-
-    // Re-inject whenever the marker set changes (after the page is ready).
+    // Stable keys so the injection effects only fire on meaningful changes.
     const markersKey = useMemo(
       () =>
         markers
-          .map((m) => `${m.id}:${m.lat.toFixed(5)}:${m.lng.toFixed(5)}:${m.emoji}:${m.color}:${m.dimmed ? 1 : 0}`)
+          .map((m) => `${m.id}:${m.lat.toFixed(5)}:${m.lng.toFixed(5)}:${m.emoji}:${m.color}:${m.dimmed ? 1 : 0}:${m.isMe ? 1 : 0}`)
           .join('|'),
       [markers],
     );
-    const lastKey = useRef<string>('');
-    if (markersKey !== lastKey.current) {
-      lastKey.current = markersKey;
-      pushMarkers(markers);
-    }
-
-    // Re-inject the path whenever it changes (after the page is ready).
-    const pushPath = useCallback(
-      (pts: Array<{ lat: number; lng: number }> | undefined, color: string) => {
-        if (!readyRef.current) return;
-        inject(`window.__setPath(${JSON.stringify(pts ?? [])}, ${JSON.stringify(color)})`);
-      },
-      [inject],
-    );
+    const resolvedPathColor = pathColor ?? '#2563EB';
     const pathKey = useMemo(
-      () => `${pathColor ?? ''}#${(path ?? []).length}:${path?.[path.length - 1]?.lat ?? ''}`,
-      [path, pathColor],
+      () => `${resolvedPathColor}#${(path ?? []).length}:${path?.[path.length - 1]?.lat ?? ''}`,
+      [path, resolvedPathColor],
     );
-    const lastPathKey = useRef<string>('');
-    if (pathKey !== lastPathKey.current) {
-      lastPathKey.current = pathKey;
-      pushPath(path, pathColor ?? '#2563EB');
-    }
+
+    // Inject markers once the page is ready and whenever they change.
+    // Non-finite coordinates are dropped — JSON.stringify(NaN) === "null",
+    // which would make Leaflet throw on L.marker([null, …]).
+    useEffect(() => {
+      if (!ready) return;
+      const safe = markers.filter((m) => Number.isFinite(m.lat) && Number.isFinite(m.lng));
+      inject(`window.__setMarkers(${JSON.stringify(safe)})`);
+      // markersKey captures the meaningful contents of `markers`.
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [ready, markersKey, inject]);
+
+    // Inject the path once the page is ready and whenever it changes.
+    useEffect(() => {
+      if (!ready) return;
+      const safe = (path ?? []).filter((p) => Number.isFinite(p.lat) && Number.isFinite(p.lng));
+      inject(`window.__setPath(${JSON.stringify(safe)}, ${JSON.stringify(resolvedPathColor)})`);
+      // pathKey captures the meaningful contents of `path` + colour.
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [ready, pathKey, inject]);
+
+    // Inject the GPS accuracy circle once ready and whenever it changes.
+    const accuracyKey = accuracy
+      ? `${accuracy.lat.toFixed(5)}:${accuracy.lng.toFixed(5)}:${Math.round(accuracy.radius)}:${accuracy.color}`
+      : '';
+    useEffect(() => {
+      if (!ready) return;
+      const a =
+        accuracy &&
+        Number.isFinite(accuracy.lat) &&
+        Number.isFinite(accuracy.lng) &&
+        Number.isFinite(accuracy.radius)
+          ? accuracy
+          : null;
+      inject(`window.__setAccuracy(${JSON.stringify(a)})`);
+      // accuracyKey captures the meaningful contents of `accuracy`.
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [ready, accuracyKey, inject]);
 
     useImperativeHandle(
       ref,
@@ -116,15 +130,12 @@ export const LeafletMap = forwardRef<LeafletMapHandle, LeafletMapProps>(
           return;
         }
         if (msg?.type === 'ready') {
-          readyRef.current = true;
-          pushMarkers(markers);
-          pushPath(path, pathColor ?? '#2563EB');
-          force((n) => n + 1);
+          setReady(true);
         } else if (msg?.type === 'marker' && msg.id) {
           onMarkerPress?.(msg.id);
         }
       },
-      [markers, onMarkerPress, pushMarkers, pushPath, path, pathColor],
+      [onMarkerPress],
     );
 
     const html = useMemo(
@@ -133,6 +144,13 @@ export const LeafletMap = forwardRef<LeafletMapHandle, LeafletMapProps>(
       // eslint-disable-next-line react-hooks/exhaustive-deps
       [dark],
     );
+
+    // If the document is reloaded (e.g. theme change rebuilds the HTML), the
+    // page is blank again until it re-signals "ready" — reset so the injection
+    // effects re-run and restore markers/path.
+    useEffect(() => {
+      setReady(false);
+    }, [html]);
 
     return (
       <View style={StyleSheet.absoluteFill}>
@@ -213,6 +231,7 @@ function buildHtml(
 
     var layer = L.layerGroup().addTo(map);
     var pathLine = null;
+    var accuracyCircle = null;
     var markerIndex = {};
 
     function send(obj) {
@@ -251,6 +270,15 @@ function buildHtml(
       var latlngs = pts.map(function (p) { return [p.lat, p.lng]; });
       pathLine = L.polyline(latlngs, {
         color: color || '#2563EB', weight: 4, opacity: 0.85, lineJoin: 'round'
+      }).addTo(map);
+    };
+
+    window.__setAccuracy = function (a) {
+      if (accuracyCircle) { map.removeLayer(accuracyCircle); accuracyCircle = null; }
+      if (!a || !a.radius || a.radius <= 0) return;
+      accuracyCircle = L.circle([a.lat, a.lng], {
+        radius: a.radius, color: a.color, weight: 1, opacity: 0.4,
+        fillColor: a.color, fillOpacity: 0.12
       }).addTo(map);
     };
 

@@ -242,10 +242,13 @@ automatiquement un build Android (secret `EXPO_TOKEN` requis).
 
 ## 🧪 Vérifications effectuées
 
-- ✅ `tsc --noEmit` — typage strict, **0 erreur**
+- ✅ `npm run typecheck` (`tsc --noEmit`) — typage strict, **0 erreur**
+- ✅ `npm run lint` (ESLint / eslint-config-expo) — **0 problème**
+- ✅ `npm test` (Jest) — **20 tests** verts (format, distances, i18n)
 - ✅ `expo install --check` — versions alignées sur le SDK 54
 - ✅ `expo-doctor` — **18/18 checks** passés
 - ✅ `expo export` (iOS **et** Android) — bundles générés sans erreur
+- ✅ CI GitHub Actions (`.github/workflows/ci.yml`) : typecheck + lint + tests
 - ✅ Permissions iOS & Android déclarées (foreground + background)
 - ✅ Gestion des cas limites : GPS off, réseau absent, permission refusée,
    démarrage hors-ligne, code invalide, auto-liaison, double-liaison
